@@ -1,8 +1,10 @@
-## Welcome to GitHub Pages
+# Juegos
+### A Disocrd in-app game bot
 
-You can use the [editor on GitHub](https://github.com/panley01/Juegos/edit/master/README.md) to maintain and preview the content for your website in Markdown files.
+Coded in Python using the following Dependencies:
+[Python version 3.6.X](https://www.python.org/downloads/release/python-368/)
+[Discord.py wrapper (Async Branch)](https://discordpy.readthedocs.io/en/async/api.html)
 
-Whenever you commit to this repository, GitHub Pages will run [Jekyll](https://jekyllrb.com/) to rebuild the pages in your site, from the content in your Markdown files.
 
 ### Markdown
 
