@@ -6,9 +6,12 @@ Coded in Python using the following Dependencies:
 [Discord.py wrapper (Async Branch)](https://discordpy.readthedocs.io/en/async/api.html)
 
 
-### Markdown
+### Installation
 
-Markdown is a lightweight and easy-to-use syntax for styling your writing. It includes conventions for
+Simply download the files above and run them from the same folder.
+On fisrt run, your bot token file will assumedly be empty, you will be asked to provide your bots token within the first running of the script to fix this.
+
+Games are installed by adding the PY files to the same folder as the main script and appending thier functions to main.py
 
 ```markdown
 Syntax highlighted code block
