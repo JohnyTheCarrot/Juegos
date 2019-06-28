@@ -1,5 +1,5 @@
 # Juegos
-### A Disocord in-app game bot
+### A Discord in-app game bot
 https://panley.co.uk/juegos
 
 Coded in Python using the following Dependencies:
