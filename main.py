@@ -1,21 +1,57 @@
-#user asking to start a game > Matchmaking server / client > game /w id > live updates via messages/reactions > render game via emoji in user DM's
+"""
+Juegos - A matchmaking and 2D game rendering framework for Discord.py
+---------------------------------------------------------------------
+This script was made for Discord hack week by @Panley#3274 with art assets by @pixelflow#2332
+This script is not made to be an exhaustive selection of games, rather it's build with the intention of providing an easy method
+for Python developers to port Singleplayer and Multiplayer 2D games to discord with realitve ease.
+
+**TO ADD A NEW GAME**
+create a new PY script akin to ox.py as presented here.
+The exiting framework in this script will let you easily pass updates based on emoji reactions or text responses with support for time-based board updates
+Add the game ID and aliases to the games list below as formatted below
+Add the game info dict to gamesinfo below as formatted below
+Import your complted PY file below
+You can now add game functions to the existing framework on predetermined events, or if you really want to, code your own events!
+"""
 import random
 import discord
 import ast
-discordtoken = (open("_stream/token.cfg","r")).read()
+import ox
+discordtoken = (open("token.cfg","r")).read()
+if discordtoken == "":
+    discordtoken = input("No bot token detected, please set it now: ")
+    (open("token.cfg","w")).write(discordtoken)
 bot = discord.Client()
-games = ["testgame","test1","mp"]
-gamesinfo = {"test1":{"minplayers":2,"maxplayers":4,"firstrender":[[0,0,0],[0,0,0],[0,0,0]]}}
-def gamerun(game,cmd,args):
-    if cmd == "firstrender":
-        crgme = gamesinfo[game]
-        return crgme["firstrender"]
+games = ["tictactoe","ox","mp","noughts&crosses","ox","mp"]
+gamesinfo = {"ox":{"desc":"basic match three game","selfname":"ox","aliases":"tictactoe | noughts&crosses","creator":"Panley#3274","minplayers":2,"maxplayers":2,"ctrlmsg":"To control the game, reply with game commands. In this game, reposnd in the following fashion:\n`tl` `tm` `tr`\n`ml` `mm` `mr`\n`bl` `bm` `br`","cscheme":[0,0]}}
+print("Flushing ratleimiter & matchmaking file...")
+(open("lookingusers","w")).write("")
+(open("activegames","w")).write("")
+def limituser(id):
+    #This function is used to add a user who has created a game or joined a game to the one active game per-person ratelimit
+    pre = (open("lookingusers","r")).read()
+    pre = pre + " " + id
+    (open("lookingusers","w")).write(pre)
+def unlimituser(id):
+    #This function is used to remove a user who has left or finished a game from the one active game per-person ratelimit
+    pre = (open("lookingusers","r")).read()
+    pre = pre.replace(" "+id,"")
+    (open("lookingusers","w")).write(pre)
+def checklimited(id):
+    #This function checks if a user currently limited by the one active game per-person ratelimit
+    pre = (open("lookingusers","r")).read()
+    if id in pre:
+        return True
+    else:
+        return False
 def findgame(game_name):
+    #this function comapres given game names to a set game ID so one game ID can have multiple aliases
     if game_name in games:
         return games[games.index(game_name)+1]
     else:
         return False
 def makegame(game_id,privacy):
+    #This function will create a matchmaking match for a given game
     vars = {"game_id":game_id,"privacy":privacy}
     if game_id != None:
         if game_id in games:
@@ -35,6 +71,7 @@ def makegame(game_id,privacy):
         vars["s"] = False
     return vars
 def matchmaking(vars,creator_id):
+    #This function adds a matchmaking dict to the global matchmaking file
     if vars["mp"] == True:
         match_id = vars["game_id"] + "-"
         token = ""
@@ -45,29 +82,36 @@ def matchmaking(vars,creator_id):
             if vars["pass"] != None:
                 match_id+="-"+vars["pass"]
         matchinfo = {"timeout":300,"match_id":match_id,"users":[creator_id],"gameid":vars["game_id"]}
-        exinf = (open("_stream/activegames","r")).read()
-        matchw = (open("_stream/activegames","w")).write(exinf+"||"+str(matchinfo))
+        matchinfo["ctrls"] = (gamesinfo[vars["game_id"]])["cscheme"]
+        if ((gamesinfo[vars["game_id"]])["cscheme"])[0] == 1:
+            vars["reactions"] == (gamesinfo[vars["game_id"]])["reactions"]
+        exinf = (open("activegames","r")).read()
+        (open("activegames","w")).write(exinf+"||"+str(matchinfo))
         return matchinfo
     else:
         return None
 def closematch(match_id):
-    activegames = ((open("_stream/activegames","r")).read()).split("||")
+    #This function removes a matchmaking dict from the global matchmaking file
+    print("looking to close match: "+match_id)
+    activegames = ((open("activegames","r")).read()).split("||")
     concat = ""
     for x in activegames:
         if (x != None) and (x != ""):
             if dict(ast.literal_eval(x))["match_id"] == match_id:
-                pass
+                print("   match identified with ID: "+dict(ast.literal_eval(x))["match_id"]+" = closeID "+match_id)
             else:
+                print("   match identified with ID: "+dict(ast.literal_eval(x))["match_id"])
                 concat += "||" + str(x)
-    activew = (open("_stream/activegames","w")).write(concat)
+    (open("activegames","w")).write(concat)
 def tryjoin(message):
+    #This function attempts to parse for a matchmaking session search from user messages
     if message.author.bot == False:
         if message.content.startswith("~"):
             params = (message.content.replace("~","")).rsplit()
             if len(params) == 2:
                 if params[0] == "joinid":
                     try:
-                        match = (open("_stream/activegames","r").read())
+                        match = (open("activegames","r").read())
                         if params[1] in match:
                             return True
                         else:
@@ -82,7 +126,7 @@ def tryjoin(message):
     elif message.author.id == "592997793434697728":
         params = (message.content.replace("~","")).rsplit()
         try:
-            match = (open("_stream/activegames","r").read())
+            match = (open("activegames","r").read())
             if params[1] in match:
                 return True
             else:
@@ -91,6 +135,7 @@ def tryjoin(message):
             return False
     return False
 def joingame(matchinfo,user_id):
+    #This function attempts to add a user to a matchmaking session, requires the user isn't already in it
     if user_id not in matchinfo["users"]:
         matchinfo["users"].append(user_id)
         updategame(matchinfo["match_id"],matchinfo)
@@ -98,7 +143,8 @@ def joingame(matchinfo,user_id):
     else:
         return None
 def updategame(match_id,matchinfo):
-    activegames = ((open("_stream/activegames","r")).read()).split("||")
+    #this function updates a matchmaking dict from the global matchmaking file
+    activegames = ((open("activegames","r")).read()).split("||")
     concat = ""
     for x in activegames:
         if (x != None) and (x != ""):
@@ -106,143 +152,383 @@ def updategame(match_id,matchinfo):
                 concat += "||"+str(matchinfo)
             else:
                 concat += "||" + str(x)
-    activew = (open("_stream/activegames","w")).write(concat)
+    (open("activegames","w")).write(concat)
 def leavegame(matchinfo,user_id):
+    #This function removes a user from a matchmaking session
     if user_id in matchinfo["users"]:
         matchinfo["users"].remove(user_id)
         return matchinfo
     else:
         return None
-def firstrender(rows):
-    rowmsgs = []
-    for x in rows:
-        concat = ""
-        for z in x:
-            if z == 0:
-                z = "⬛"
-            concat += z
-        rowmsgs.append(concat)
-    return rowmsgs
 @bot.event
 async def on_ready():
-    print("connected")
+    #Basic custom presence because a e s t h e t i c s
+    print("Discord connected")
+    game = discord.Game(name = "panley.co.uk/juegos",type = 3,url = "https://panley.co.uk/juegos")
+    await bot.change_presence(game = game)
 @bot.event
 async def on_message(message):
-    if message.author.bot == False:
-        if message.content.startswith("~"):
-            print("command passed")
-            params = (message.content.replace("~","")).rsplit()
-            if params[0] == "newgame":
-                print("   command ID: Newgame")
-                if len(params) > 1:
-                    if len(params) > 2:
-                        if params[2] == "private":
-                            priv = "invite"
+    if checklimited(message.author.id) == False:
+        if message.author.bot == False:
+            if message.content.startswith("~"):
+                params = (message.content.replace("~","")).rsplit()
+                if (params[0] == "help"):
+                    toembed = discord.Embed(
+                        title = "Juegos Commands",
+                        description = "format: `~command|alias <required argument> (optional argument)`\n`~help` - Shows this!\n`~newgame|ng <game name> (private)` - Create a new game for the given game name\n`~findgame|fg <game name>` - Finds a public match for the given game name\n`~joinid <match ID>` - Joins the user to a given match/private match\n`~games` - Lists all games present on the bot",
+                        color = 7506394
+                    )
+                    toembed.add_field(
+                        name = "Programmed by Panley#3274 in Python",
+                        value = "[Creators server](https://discord.gg/tBs8MRE) | [Official website](https://panley.co.uk/juegos) | [GitHub](https://github.com/panley01/Juegos)"
+                    )
+                    await bot.send_message(message.channel,embed = toembed)
+                elif (params[0] == "games"):
+                    toembed = discord.Embed(
+                        title = "Installed Games",
+                        color = 7506394
+                    )
+                    for x in gamesinfo:
+                        x = gamesinfo[x]
+                        toembed.add_field(
+                            name = ("**"+x["selfname"]+"** - Aliases: "+x["aliases"]),
+                            value = ("Created by "+x["creator"]+"\n"+x["desc"]+"\nPlayers - Min: "+str(x["minplayers"])+" Max: "+str(x["maxplayers"]))
+                        )
+                    await bot.send_message(message.channel,embed = toembed)
+                elif (params[0] == "newgame") or (params[0] == "ng"):
+                    print("   command ID: Newgame")
+                    if len(params) > 1:
+                        # Privacy is expandable, there is potential for cross-bot communication via a web API or dedicated bot interaction server. Right now there's just invite only (private after the game name) and public
+                        if len(params) > 2:
+                            if params[2] == "private":
+                                priv = "invite"
+                            else:
+                                priv = None
                         else:
                             priv = None
-                    else:
-                        priv = None
-                    gameid = findgame(params[1])
-                    game = makegame(gameid,privacy = priv)
-                    if game["mp"] == True:
-                        game = matchmaking(game,message.author.id)
-                        resp = ""
-                        toembed = discord.Embed(
-                            title = params[1]+" game created",
-                            description = "Match ID: "+game["match_id"]
-                        )
-                        usrprint = ""
-                        for u in game["users"]:
-                            u = await bot.get_user_info(u)
-                            usrprint += u.name + "\n"
-                        toembed.add_field(
-                            name = "Players ["+str(len(game["users"]))+"/"+str((gamesinfo[game["gameid"]])["maxplayers"])+"]",
-                            value = usrprint
-                        )
-                        gameinit = await bot.send_message(message.author,embed = toembed)
-                        messages = [gameinit]
-                        while resp != None:
-                            resp = await bot.wait_for_message(check = tryjoin,timeout = game["timeout"])
-                            if resp != None:
-                                toembed = discord.Embed(
-                                    title = params[1]+" game created",
-                                    description = "Match ID: "+game["match_id"]
-                                )
-                                usrprint = ""
-                                for u in game["users"]:
-                                    u = await bot.get_user_info(u)
-                                    usrprint += u.name + "\n"
-                                toembed.add_field(
-                                    name = "Players ["+str(len(game["users"]))+"/"+str((gamesinfo[game["gameid"]])["maxplayers"])+"]",
-                                    value = usrprint
-                                )
-                                params = (resp.content.replace("~","")).rsplit()
-                                if resp.author.bot == False:
-                                    resp1 = joingame(game,resp.author.id)
-                                    addmsg = await bot.send_message(resp.author,embed = toembed)
+                        gameid = findgame(params[1])
+                        game = makegame(gameid,privacy = priv)
+                        if game["mp"] == True:
+                            game = matchmaking(game,message.author.id)
+                            resp = ""
+                            toembed = discord.Embed(
+                                title = params[1]+" game created",
+                                description = "Match ID: "+game["match_id"],
+                                color = 7506394
+                            )
+                            usrprint = ""
+                            for u in game["users"]:
+                                u = await bot.get_user_info(u)
+                                usrprint += u.name + "\n"
+                            toembed.add_field(
+                                name = "Players ["+str(len(game["users"]))+"/"+str((gamesinfo[game["gameid"]])["maxplayers"])+"]",
+                                value = usrprint
+                            )
+                            gameinit = await bot.send_message(message.author,embed = toembed)
+                            messages = [gameinit]
+                            limituser(message.author.id)
+                            while resp != None:
+                                resp = await bot.wait_for_message(check = tryjoin,timeout = game["timeout"])
+                                if resp != None:
+                                    print("   Active lobby recived join request: "+resp.content)
+                                    toembed = discord.Embed(
+                                        title = params[1]+" game created",
+                                        description = "Match ID: "+game["match_id"]
+                                    )
+                                    usrprint = ""
+                                    for u in game["users"]:
+                                        u = await bot.get_user_info(u)
+                                        usrprint += u.name + "\n"
+                                    toembed.add_field(
+                                        name = "Players ["+str(len(game["users"]))+"/"+str((gamesinfo[game["gameid"]])["maxplayers"])+"]",
+                                        value = usrprint
+                                    )
+                                    params = (resp.content.replace("~","")).rsplit()
+                                    if resp.author.bot == False:
+                                        resp1 = joingame(game,resp.author.id)
+                                        addmsg = await bot.send_message(resp.author,embed = toembed)
+                                    else:
+                                        gameid = params[1]
+                                        if gameid == game["match_id"]:
+                                            useradd = await bot.get_user_info(params[2])
+                                            addmsg = await bot.send_message(useradd,embed = toembed)
+                                            resp1 = joingame(game,useradd.id)
+                                        else:
+                                            resp1 = None
+                                    if resp1 != None:
+                                        game = resp1
+                                        messages.append(addmsg)
                                 else:
-                                    useradd = await bot.get_user_info(params[2])
-                                    addmsg = await bot.send_message(useradd,embed = toembed)
-                                    resp1 = joingame(game,useradd.id)
-                                if resp1 != None:
-                                    game = resp1
-                                messages.append(addmsg)
-                            else:
-                                if len(game["users"]) >= (gamesinfo[game["gameid"]])["minplayers"]:
+                                    if len(game["users"]) >= (gamesinfo[game["gameid"]])["minplayers"]:
+                                        matchmade = True
+                                    else:
+                                        matchmade = False
+                                if len(game["users"]) >= (gamesinfo[game["gameid"]])["maxplayers"]:
                                     matchmade = True
-                                else:
-                                    matchmade = False
-                            if len(game["users"]) >= (gamesinfo[game["gameid"]])["maxplayers"]:
-                                matchmade = True
-                                resp = None
-                            for m in messages:
-                                toembed = discord.Embed(
-                                    title = params[1]+" game created",
-                                    description = "Match ID: "+game["match_id"]
-                                )
-                                usrprint = ""
-                                for u in game["users"]:
-                                    u = await bot.get_user_info(u)
-                                    usrprint += u.name + "\n"
-                                toembed.add_field(
-                                    name = "Players ["+str(len(game["users"]))+"/"+str((gamesinfo[game["gameid"]])["maxplayers"])+"]",
-                                    value = usrprint
-                                )
-                                await bot.edit_message(m,embed = toembed)
-                        closematch(game["match_id"])
-                        print("match with ID: "+game["match_id"]+" closed from matchmaking")
-                        if matchmade == True:
-                            game["usermessages"] = []
-                            for dm in game["users"]:
-                                msgs = []
-                                tosend = firstrender(gamerun(game["gameid"],"firstrender",None))
-                                usr = await bot.get_user_info(dm)
-                                for ms in tosend:
-                                    msgs.append(await bot.send_message(usr,ms))
-                                dictadd = {dm:msgs}
-                                (game["usermessages"]).append(dictadd)
-            elif params[0] == "findgame":
-                if len(params) == 2:
-                    gameid = findgame(params[1])
-                    if gameid != False:
-                        print("   game search started with game ID: "+gameid)
-                        activegames = ((open("_stream/activegames","r")).read()).split("||")
-                        potentgames = []
-                        for x in activegames:
-                            if (x != None) and (x != ""):
-                                print(x)
-                                if len((dict(ast.literal_eval(x))["gameid"]).rsplit("-")) <3:
-                                    if dict(ast.literal_eval(x))["gameid"] == str(gameid):
-                                        potentgames.append(dict(ast.literal_eval(x)))
-                        filled = 0
-                        currentgame = None
-                        for z in potentgames:
-                            if len(z["users"]) > filled:
-                                filled = len(z["users"])
-                                currentgame = z
-                        if currentgame != None:
-                            d = await bot.send_message(message.author,"selfjoin "+currentgame["match_id"]+" "+message.author.id)
-                            await bot.delete_message(d)
+                                    resp = None
+                                for m in messages:
+                                    toembed = discord.Embed(
+                                        title = params[1]+" game created",
+                                        description = "Match ID: "+game["match_id"],
+                                        color = 7506394
+                                    )
+                                    usrprint = ""
+                                    for u in game["users"]:
+                                        u = await bot.get_user_info(u)
+                                        usrprint += u.name + "\n"
+                                    toembed.add_field(
+                                        name = "Players ["+str(len(game["users"]))+"/"+str((gamesinfo[game["gameid"]])["maxplayers"])+"]",
+                                        value = usrprint
+                                    )
+                                    await bot.edit_message(m,embed = toembed)
+                            closematch(game["match_id"])
+                            print("match with ID: "+game["match_id"]+" closed from matchmaking")
+                            if matchmade == True:
+                                for zz in messages:
+                                    toembed = discord.Embed(
+                                        title = params[1]+" game created",
+                                        description = "Match ID: "+game["match_id"],
+                                        color = 10070709
+                                    )
+                                    usrprint = ""
+                                    for u in game["users"]:
+                                        u = await bot.get_user_info(u)
+                                        usrprint += u.name + "\n"
+                                    toembed.add_field(
+                                        name = "Players ["+str(len(game["users"]))+"/"+str((gamesinfo[game["gameid"]])["maxplayers"])+"]",
+                                        value = usrprint,
+                                        inline = True
+                                    )
+                                    ctrlmsg = (gamesinfo[game["gameid"]])["ctrlmsg"]
+                                    toembed.add_field(
+                                        name = "Game instructions:",
+                                        value = ctrlmsg,
+                                        inline = True
+                                    )
+                                    await bot.edit_message(zz,embed = toembed)
+                                userstatuses = []
+                                if game["gameid"] == "ox":
+                                    toprint = ox.firstrender()
+                                for plr in game["users"]:
+                                    chnl = await bot.get_user_info(plr)
+                                    msgs = []
+                                    for rdr in toprint:
+                                        concat = ""
+                                        for rdr1 in rdr:
+                                            concat += rdr1
+                                        msgr = await bot.send_message(chnl,concat)
+                                        msgs.append(msgr.id)
+                                        dmchl = msgr.channel.id
+                                    if (game["ctrls"])[0] == 1:
+                                        for emji in game["reactions"]:
+                                            await bot.add_reaction(msgr,emji)
+                                    userinf = {"id":plr,"board":toprint,"messages":msgs,"dmchannel":dmchl,"team":(game["users"]).index(plr)}
+                                    userstatuses.append(userinf)
+                                    game["usrstatuses"] = userstatuses
+                                    game["currentplay"] = 0
+                                print("Game started with ID: "+str(game["match_id"]))
+                                while matchmade == True:
+                                    userwaitfor = await bot.get_user_info((game["users"])[game["currentplay"]])
+                                    if (game["ctrls"])[0] == 0:
+                                        if (game["ctrls"])[1] == 0:
+                                            resp = await bot.wait_for_message(author = userwaitfor,timeout = game["timeout"])
+                                        else:
+                                            resp = await bot.wait_for_message(author = userwaitfor,timeout = 1)
+                                    elif (game["ctrls"])[0] == 1:
+                                        if (game["ctrls"])[1] == 0:
+                                            resp = await bot.wait_for_reaction(user = userwaitfor,timeout = game["timeout"])
+                                        else:
+                                            resp = await bot.wait_for_reaction(user = userwaitfor,timeout = 1)
+                                    if (resp != None) and ((game["ctrls"])[1] == 0):
+                                        if game["gameid"] == "ox":
+                                            r1 = ox.makeplay(((game["usrstatuses"])[game["currentplay"]]),resp.content)
+                                        if r1 != False:
+                                            for usrs in game["usrstatuses"]:
+                                                usrs["board"] = r1["board"]
+                                                for clmn in (usrs)["board"]:
+                                                    concat = ""
+                                                    for xzzx in clmn:
+                                                        concat += xzzx
+                                                    chnl = bot.get_channel(usrs["dmchannel"])
+                                                    msgs = (usrs["messages"])[(usrs["board"]).index(clmn)]
+                                                    msgobj = await bot.get_message(chnl,msgs)
+                                                    await bot.edit_message(msgobj,concat)
+                                            if game["gameid"] == "ox":
+                                                winchk = ox.wincond(((game["usrstatuses"])[game["currentplay"]]))
+                                            if winchk == True:
+                                                for jjj in messages:
+                                                    toembed = discord.Embed(
+                                                        title = params[1]+" game created",
+                                                        description = "Match ID: "+game["match_id"],
+                                                        color = 10070709
+                                                    )
+                                                    usrprint = ""
+                                                    for u in game["users"]:
+                                                        u = await bot.get_user_info(u)
+                                                        usrprint += u.name + "\n"
+                                                    toembed.add_field(
+                                                        name = "Players ["+str(len(game["users"]))+"/"+str((gamesinfo[game["gameid"]])["maxplayers"])+"]",
+                                                        value = usrprint,
+                                                        inline = True
+                                                    )
+                                                    usrget = await bot.get_user_info((game["users"])[game["currentplay"]])
+                                                    toembed.add_field(
+                                                        name = "GAME OVER",
+                                                        value = usrget.name+" has won!",
+                                                        inline = True
+                                                    )
+                                                    await bot.edit_message(jjj,embed = toembed)
+                                                for jjjj in game["users"]:
+                                                    unlimituser(jjjj)
+                                                matchmade = False
+                                            if game["gameid"] == "ox":
+                                                losschk = ox.losscond(((game["usrstatuses"])[game["currentplay"]]))
+                                            if losschk == True:
+                                                for jjj in messages:
+                                                    toembed = discord.Embed(
+                                                        title = params[1]+" game created",
+                                                        description = "Match ID: "+game["match_id"],
+                                                        color = 10070709
+                                                    )
+                                                    usrprint = ""
+                                                    for u in game["users"]:
+                                                        u = await bot.get_user_info(u)
+                                                        usrprint += u.name + "\n"
+                                                    toembed.add_field(
+                                                        name = "Players ["+str(len(game["users"]))+"/"+str((gamesinfo[game["gameid"]])["maxplayers"])+"]",
+                                                        value = usrprint,
+                                                        inline = True
+                                                    )
+                                                    toembed.add_field(
+                                                        name = "GAME OVER",
+                                                        value = "No-one won!",
+                                                        inline = True
+                                                    )
+                                                    await bot.edit_message(jjj,embed = toembed)
+                                                for jjjj in game["users"]:
+                                                    unlimituser(jjjj)
+                                                matchmade = False
+                                            if game["currentplay"] == len(game["users"])-1:
+                                                game["currentplay"] = 0
+                                            else:
+                                                game["currentplay"] += 1
+                                    elif (resp != None) and ((game["ctrls"])[1] == 1):
+                                        if game["gameid"] == "some emoji controlled game":
+                                            r1 = ox.makeplay(((game["usrstatuses"])[game["currentplay"]]),resp.content)
+                                        if r1 != False:
+                                            for usrs in game["usrstatuses"]:
+                                                usrs["board"] = r1["board"]
+                                                for clmn in (usrs)["board"]:
+                                                    concat = ""
+                                                    for xzzx in clmn:
+                                                        concat += xzzx
+                                                    chnl = bot.get_channel(usrs["dmchannel"])
+                                                    msgs = (usrs["messages"])[(usrs["board"]).index(clmn)]
+                                                    msgobj = await bot.get_message(chnl,msgs)
+                                                    await bot.edit_message(msgobj,concat)
+                                            if game["gameid"] == "some emoji controlled game":
+                                                winchk = ox.wincond(((game["usrstatuses"])[game["currentplay"]]))
+                                            if winchk == True:
+                                                for jjj in messages:
+                                                    toembed = discord.Embed(
+                                                        title = params[1]+" game created",
+                                                        description = "Match ID: "+game["match_id"],
+                                                        color = 10070709
+                                                    )
+                                                    usrprint = ""
+                                                    for u in game["users"]:
+                                                        u = await bot.get_user_info(u)
+                                                        usrprint += u.name + "\n"
+                                                    toembed.add_field(
+                                                        name = "Players ["+str(len(game["users"]))+"/"+str((gamesinfo[game["gameid"]])["maxplayers"])+"]",
+                                                        value = usrprint,
+                                                        inline = True
+                                                    )
+                                                    usrget = await bot.get_user_info((game["users"])[game["currentplay"]])
+                                                    toembed.add_field(
+                                                        name = "GAME OVER",
+                                                        value = usrget.name+" has won!",
+                                                        inline = True
+                                                    )
+                                                    await bot.edit_message(jjj,embed = toembed)
+                                                for jjjj in game["users"]:
+                                                    unlimituser(jjjj)
+                                                matchmade = False
+                                            if game["gameid"] == "some emoji controlled game":
+                                                losschk = ox.losscond(((game["usrstatuses"])[game["currentplay"]]))
+                                            if losschk == True:
+                                                for jjj in messages:
+                                                    toembed = discord.Embed(
+                                                        title = params[1]+" game created",
+                                                        description = "Match ID: "+game["match_id"],
+                                                        color = 10070709
+                                                    )
+                                                    usrprint = ""
+                                                    for u in game["users"]:
+                                                        u = await bot.get_user_info(u)
+                                                        usrprint += u.name + "\n"
+                                                    toembed.add_field(
+                                                        name = "Players ["+str(len(game["users"]))+"/"+str((gamesinfo[game["gameid"]])["maxplayers"])+"]",
+                                                        value = usrprint,
+                                                        inline = True
+                                                    )
+                                                    toembed.add_field(
+                                                        name = "GAME OVER",
+                                                        value = "No-one won!",
+                                                        inline = True
+                                                    )
+                                                    await bot.edit_message(jjj,embed = toembed)
+                                                for jjjj in game["users"]:
+                                                    unlimituser(jjjj)
+                                                matchmade = False
+                                            if game["currentplay"] == len(game["users"])-1:
+                                                game["currentplay"] = 0
+                                            else:
+                                                game["currentplay"] += 1
+                                    else:
+                                        game = leavegame(game,(game["users"])[game["currentplay"]])
+                                        if len(game["users"]< (gamesinfo[game["gameid"]])["minplayers"]):
+                                            matchmade = False
+                                            for jjjj in game["users"]:
+                                                unlimituser(jjjj)
+                                        else:
+                                            if game["currentplay"] == len(game["users"])-1:
+                                                game["currentplay"] = 0
+                                            else:
+                                                game["currentplay"] += 1
+                            else:
+                                for usrs in game["users"]:
+                                    unlimituser(usrs)
                         else:
-                            await bot.send_message(message.channel,"couldn't find an active lobby for this game, you can make one with `~newgame "+params[1]+"`")
+                            foo = "bar"
+                            # <<<<<<<<<<<< Singleplayer games go here, the code would be a minor variation of the MP code that removes the current player, players list and match ID arguments
+                            # I would code a simple SP game but it'd be boring compared to tic-tac-toe
+                            # So you get one MP game instead
+                            # Please feel free to add your own SP game though <3
+                elif (params[0] =="findgame") or (params[0] == "fg"):
+                    if len(params) == 2:
+                        gameid = findgame(params[1])
+                        if gameid != False:
+                            print("   game search started with game ID: "+gameid)
+                            activegames = ((open("activegames","r")).read()).split("||")
+                            potentgames = []
+                            for x in activegames:
+                                if (x != None) and (x != ""):
+                                    print(x)
+                                    if len((dict(ast.literal_eval(x))["gameid"]).rsplit("-")) <3:
+                                        if dict(ast.literal_eval(x))["gameid"] == str(gameid):
+                                            potentgames.append(dict(ast.literal_eval(x)))
+                            filled = 0
+                            currentgame = None
+                            for z in potentgames:
+                                if len(z["users"]) > filled:
+                                    filled = len(z["users"])
+                                    currentgame = z
+                            if currentgame != None:
+                                print("   attempting to join user "+message.author.id+" to game "+str(currentgame["match_id"]))
+                                d = await bot.send_message(message.author,"selfjoin "+currentgame["match_id"]+" "+message.author.id)
+                                await bot.delete_message(d)
+                                limituser(message.author.id)
+                            else:
+                                await bot.send_message(message.channel,"couldn't find an active lobby for this game, you can make one with `~newgame "+params[1]+"`")
 bot.run(discordtoken)
