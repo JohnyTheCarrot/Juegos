@@ -10,7 +10,7 @@ create a new PY script akin to ox.py as presented here.
 The exiting framework in this script will let you easily pass updates based on emoji reactions or text responses with support for time-based board updates
 Add the game ID and aliases to the games list below as formatted below
 Add the game info dict to gamesinfo below as formatted below
-Import your completed PY file below
+Import your complted PY file below
 You can now add game functions to the existing framework on predetermined events, or if you really want to, code your own events!
 """
 import random
@@ -307,6 +307,7 @@ async def on_message(message):
                                     )
                                     await bot.edit_message(zz,embed = toembed)
                                 userstatuses = []
+                                #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Initial board rendering is declared here
                                 if game["gameid"] == "ox":
                                     toprint = ox.firstrender()
                                 for plr in game["users"]:
@@ -339,7 +340,20 @@ async def on_message(message):
                                             resp = await bot.wait_for_reaction(user = userwaitfor,timeout = game["timeout"])
                                         else:
                                             resp = await bot.wait_for_reaction(user = userwaitfor,timeout = 1)
-                                    if (resp != None) and ((game["ctrls"])[1] == 0):
+                                    if str(resp) == "exit":
+                                        #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Handling for a user leaving the game by choice
+                                        game = leavegame(game,(game["users"])[game["currentplay"]])
+                                        if len(game["users"]< (gamesinfo[game["gameid"]])["minplayers"]):
+                                            matchmade = False
+                                            for jjjj in game["users"]:
+                                                unlimituser(jjjj)
+                                        else:
+                                            if game["currentplay"] == len(game["users"])-1:
+                                                game["currentplay"] = 0
+                                            else:
+                                                game["currentplay"] += 1
+                                    elif (resp != None) and ((game["ctrls"])[1] == 0):
+                                        #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< On message events here
                                         if game["gameid"] == "ox":
                                             r1 = ox.makeplay(((game["usrstatuses"])[game["currentplay"]]),resp.content)
                                         if r1 != False:
@@ -413,6 +427,7 @@ async def on_message(message):
                                             else:
                                                 game["currentplay"] += 1
                                     elif (resp != None) and ((game["ctrls"])[1] == 1):
+                                        #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< On reaction events here
                                         if game["gameid"] == "some emoji controlled game":
                                             r1 = ox.makeplay(((game["usrstatuses"])[game["currentplay"]]),resp.content)
                                         if r1 != False:
@@ -500,7 +515,7 @@ async def on_message(message):
                                 for usrs in game["users"]:
                                     unlimituser(usrs)
                         else:
-                            foo = "bar"
+                            pass
                             # <<<<<<<<<<<< Singleplayer games go here, the code would be a minor variation of the MP code that removes the current player, players list and match ID arguments
                             # I would code a simple SP game but it'd be boring compared to tic-tac-toe
                             # So you get one MP game instead
