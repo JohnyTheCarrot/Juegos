@@ -10,7 +10,7 @@ create a new PY script akin to ox.py as presented here.
 The exiting framework in this script will let you easily pass updates based on emoji reactions or text responses with support for time-based board updates
 Add the game ID and aliases to the games list below as formatted below
 Add the game info dict to gamesinfo below as formatted below
-Import your complted PY file below
+Import your completed PY file below
 You can now add game functions to the existing framework on predetermined events, or if you really want to, code your own events!
 """
 import random
