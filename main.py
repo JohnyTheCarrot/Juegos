@@ -211,34 +211,39 @@ async def on_message(message):
                                 filename = fileurl.rsplit("/")
                                 filename = filename[len(filename)-1]
                             r = requests.get(fileurl)
-                            (open(filename)).write(r.content)
+                            (open(filename,"wb")).write(r.content)
                             await bot.send_message(message.channel,"Please send the config file for the relevant game")
                             filesend = await bot.wait_for_message(timeout = 60,author = message.author)
                             if len(filesend.attachments) == 1:
                                 for z in filesend.attachments:
                                     fileurl = z["url"]
                                     r = requests.get(fileurl)
-                                newgameconf = r.content.rsplit("\n")
+                                newgameconf = r.text.rsplit("\n")
                                 gamelist = list(ast.literal_eval(newgameconf[0]))
                                 gamedict = dict(ast.literal_eval(newgameconf[1]))
                                 for ne in gamelist:
                                     games.append(ne)
-                                (open("gameslist.cfg","w")).write(games)
+                                (open("gameslist.cfg","w")).write(str(games))
                                 gamesinfo[gamedict["selfname"]] = gamedict
-                                (open("gamesdict.cfg","w")).write(gamesinfo)
-                                prescript = str((open("main.py","r")).read())
-                                prescript = prescript.replace("#initrenderhere",'elif game["gameid"] == "'+gamedict["selfname"]+'":\n                                        toprint = '+gamedict["selfname"]+'.firstrender()\n                                        #initrenderhere')
+                                (open("gamesdict.cfg","w")).write(str(gamesinfo))
+                                prescriptall = str((open("main.py","r")).read())
+                                prescriptall = prescriptall.rsplit("#writefterhere")
+                                prescript = prescriptall[1]
+                                prescript = prescript.replace(" #initrenderhere",' elif game["gameid"] == "'+gamedict["selfname"]+'":\n                                        toprint = '+gamedict["selfname"]+'.firstrender()\n                                     #initrenderhere')
                                 if (gamedict["cscheme"])[1] == 0:
-                                    prescript = prescript.replace("#msgeventhere",'elif game["gameid"] == "'+gamedict["selfname"]+'":\n                                                r1 = '+gamedict["selfname"]+'.makeplay(((game["usrstatuses"])[game["currentplay"]]),resp.content)\n                                            #msgeventhere')
-                                    prescript = prescript.replace("#msgwincondhere",'elif game["gameid"] == "'+gamedict["selfname"]+'":\n                                                    winchk = '+gamedict["selfname"]+'.wincond(((game["usrstatuses"])[game["currentplay"]]))\n                                                #msgwincondhere')
-                                    prescript = prescript.replace("#msglosscondhere",'elif game["gameid"] == "'+gamedict["selfname"]+'":\n                                                    winchk = '+gamedict["selfname"]+'.losscond(((game["usrstatuses"])[game["currentplay"]]))\n                                                #msglosscondhere')
+                                    prescript = prescript.replace(" #msgeventhere",' elif game["gameid"] == "'+gamedict["selfname"]+'":\n                                                r1 = '+gamedict["selfname"]+'.makeplay(((game["usrstatuses"])[game["currentplay"]]),resp.content)\n                                         #msgeventhere')
+                                    prescript = prescript.replace(" #msgwincondhere",' elif game["gameid"] == "'+gamedict["selfname"]+'":\n                                                    winchk = '+gamedict["selfname"]+'.wincond(((game["usrstatuses"])[game["currentplay"]]))\n                                             #msgwincondhere')
+                                    prescript = prescript.replace(" #msglosscondhere",' elif game["gameid"] == "'+gamedict["selfname"]+'":\n                                                    winchk = '+gamedict["selfname"]+'.losscond(((game["usrstatuses"])[game["currentplay"]]))\n                                             #msglosscondhere')
                                 elif (gamedict["cscheme"])[1] == 1:
-                                    prescript = prescript.replace("#reacteventhere",'elif game["gameid"] == "'+gamedict["selfname"]+'":\n                                                r1 = '+gamedict["selfname"]+'.makeplay(((game["usrstatuses"])[game["currentplay"]]),resp.content)\n                                            #reacteventhere')
-                                    prescript = prescript.replace("#reactwincondhere",'elif game["gameid"] == "'+gamedict["selfname"]+'":\n                                                    winchk = '+gamedict["selfname"]+'.wincond(((game["usrstatuses"])[game["currentplay"]]))\n                                                #reactwincondhere')
-                                    prescript = prescript.replace("#reactlosscondhere",'elif game["gameid"] == "'+gamedict["selfname"]+'":\n                                                    winchk = '+gamedict["selfname"]+'.losscond(((game["usrstatuses"])[game["currentplay"]]))\n                                                #reactlosscondhere')
+                                    prescript = prescript.replace(" #reacteventhere",' elif game["gameid"] == "'+gamedict["selfname"]+'":\n                                                r1 = '+gamedict["selfname"]+'.makeplay(((game["usrstatuses"])[game["currentplay"]]),resp.content)\n                                         #reacteventhere')
+                                    prescript = prescript.replace(" #reactwincondhere",' elif game["gameid"] == "'+gamedict["selfname"]+'":\n                                                    winchk = '+gamedict["selfname"]+'.wincond(((game["usrstatuses"])[game["currentplay"]]))\n                                             #reactwincondhere')
+                                    prescript = prescript.replace(" #reactlosscondhere",' elif game["gameid"] == "'+gamedict["selfname"]+'":\n                                                    winchk = '+gamedict["selfname"]+'.losscond(((game["usrstatuses"])[game["currentplay"]]))\n                                             #reactlosscondhere')
                                 await bot.send_message(message.channel,"All files updated, the bot will now restart.")
+                                prescript = prescriptall[0] + "#writeafterhere" + prescript
                                 (open("main.py","w")).write(prescript)
                                 os.execl(sys.executable, sys.executable, * sys.argv)
+                                #DO NOT EDIT THIS COMMENT! THIS LINE IS REFERENCED FOR DYNAMIC FILE UPDATING!
+                                #writefterhere
                 elif (params[0] == "newgame") or (params[0] == "ng"):
                     print("   command ID: Newgame")
                     if len(params) > 1:
