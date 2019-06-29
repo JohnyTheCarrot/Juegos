@@ -20,13 +20,13 @@ import ox
 import cn4
 
 bot_author_id = "249287049482338305" # <<<<<<<<<<<<<<<< IF YOU ARE MANUALLY HOSTING, REPLACE THIS STRING WITH YOUR OWN DISCORD ID OR YOU WILL NOT BE ABLE TO USE DEV COMMANDS!
-discord_token = (open("token.cfg", "r")).read()
+discord_token = open("token.cfg", "r").read()
 if discord_token == "":
     discord_token = input("No bot token detected, please set it now: ")
     open("token.cfg","w").write(discord_token)
 bot = discord.Client()
-games = list(ast.literal_eval((open("gameslist.cfg","r")).read()))
-gamesinfo = dict(ast.literal_eval((open("gamesdict.cfg","r")).read()))
+games = list(ast.literal_eval(open("gameslist.cfg","r").read()))
+games_info = dict(ast.literal_eval(open("gamesdict.cfg", "r").read()))
 print("Flushing ratleimiter & matchmaking file...")
 open("lookingusers","w").write("")
 open("activegames","w").write("")
@@ -95,9 +95,9 @@ def matchmaking(vars,creator_id):
             "users": [creator_id],
             "gameid": vars["game_id"]
         }
-        matchinfo["ctrls"] = (gamesinfo[vars["game_id"]])["cscheme"]
-        if gamesinfo[vars["game_id"]]["cscheme"][0] == 1:
-            vars["reactions"] == gamesinfo[vars["game_id"]]["reactions"]
+        matchinfo["ctrls"] = (games_info[vars["game_id"]])["cscheme"]
+        if games_info[vars["game_id"]]["cscheme"][0] == 1:
+            vars["reactions"] == games_info[vars["game_id"]]["reactions"]
         exinf = open("activegames","r").read()
         open("activegames","w").write(exinf+"||"+str(matchinfo))
         return matchinfo
@@ -208,8 +208,8 @@ async def on_message(message):
                         title = "Installed Games",
                         color = 7506394
                     )
-                    for x in gamesinfo:
-                        x = gamesinfo[x]
+                    for x in games_info:
+                        x = games_info[x]
                         to_embed.add_field(
                             name = f"**{x['selfname']}** - Aliases: {x['aliases']}",
                             value = f"Created by {x['creator']}\n{x['desc']}\nPlayers - Min: {str(x['minplayers'])} Max: {str(x['maxplayers'])}"
@@ -244,7 +244,7 @@ async def on_message(message):
                                 u = await bot.get_user_info(u)
                                 usr_print += u.name + "\n"
                             to_embed.add_field(
-                                name = f"Players [{str(len(game['users']))}/{str((gamesinfo[game['gameid']])['maxplayers'])}]",
+                                name = f"Players [{str(len(game['users']))}/{str((games_info[game['gameid']])['maxplayers'])}]",
                                 value = usr_print
                             )
                             game_init = await bot.send_message(message.author,embed = to_embed)
@@ -263,7 +263,7 @@ async def on_message(message):
                                         u = await bot.get_user_info(u)
                                         usr_print += u.name + "\n"
                                     to_embed.add_field(
-                                        name = f"Players [{str(len(game['users']))}/{str(gamesinfo[game['gameid']]['maxplayers'])}]",
+                                        name = f"Players [{str(len(game['users']))}/{str(games_info[game['gameid']]['maxplayers'])}]",
                                         value = usr_print
                                     )
                                     params = (resp.content.replace("~","")).rsplit()
@@ -282,11 +282,11 @@ async def on_message(message):
                                         game = resp1
                                         messages.append(add_msg)
                                 else:
-                                    if len(game["users"]) >= gamesinfo[game["gameid"]]["minplayers"]:
+                                    if len(game["users"]) >= games_info[game["gameid"]]["minplayers"]:
                                         match_made = True
                                     else:
                                         match_made = False
-                                if len(game["users"]) >= gamesinfo[game["gameid"]]["maxplayers"]:
+                                if len(game["users"]) >= games_info[game["gameid"]]["maxplayers"]:
                                     match_made = True
                                     resp = None
                                 for m in messages:
@@ -300,7 +300,7 @@ async def on_message(message):
                                         u = await bot.get_user_info(u)
                                         usr_print += u.name + "\n"
                                     to_embed.add_field(
-                                        name = f"Players [{str(len(game['users']))}/{str((gamesinfo[game['gameid']])['maxplayers'])}]",
+                                        name = f"Players [{str(len(game['users']))}/{str((games_info[game['gameid']])['maxplayers'])}]",
                                         value = usr_print
                                     )
                                     await bot.edit_message(m, embed = to_embed)
@@ -318,11 +318,11 @@ async def on_message(message):
                                         u = await bot.get_user_info(u)
                                         usr_print += u.name + "\n"
                                     to_embed.add_field(
-                                        name = f"Players [{str(len(game['users']))}/{str((gamesinfo[game['gameid']])['maxplayers'])}]",
+                                        name = f"Players [{str(len(game['users']))}/{str((games_info[game['gameid']])['maxplayers'])}]",
                                         value = usr_print,
                                         inline = True
                                     )
-                                    ctrl_msg = gamesinfo[game["gameid"]]["ctrlmsg"]
+                                    ctrl_msg = games_info[game["gameid"]]["ctrlmsg"]
                                     to_embed.add_field(
                                         name = "Game instructions:",
                                         value = ctrl_msg,
@@ -377,11 +377,11 @@ async def on_message(message):
                                                 if game["users"].index(u) == game["currentplay"]:
                                                     plr_name = uu.name
                                             to_embed.add_field(
-                                                name = f"Players [{str(len(game['users']))}/{str((gamesinfo[game['gameid']])['maxplayers'])}]",
+                                                name = f"Players [{str(len(game['users']))}/{str((games_info[game['gameid']])['maxplayers'])}]",
                                                 value = usr_print,
                                                 inline = True
                                             )
-                                            ctrl_msg = gamesinfo[game["gameid"]]["ctrlmsg"]
+                                            ctrl_msg = games_info[game["gameid"]]["ctrlmsg"]
                                             to_embed.add_field(
                                                 name = "Game instructions:",
                                                 value = ctrl_msg,
@@ -407,7 +407,7 @@ async def on_message(message):
                                         if str(resp) == "exit":
                                             #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Handling for a user leaving the game by choice
                                             game = leave_game(game, game["users"][game["currentplay"]])
-                                            if len(game["users"]) < gamesinfo[game["gameid"]]["minplayers"]:
+                                            if len(game["users"]) < games_info[game["gameid"]]["minplayers"]:
                                                 match_made = False
                                                 for jjjj in game["users"]:
                                                     unlimit_user(jjjj)
@@ -422,7 +422,7 @@ async def on_message(message):
                                                         u = await bot.get_user_info(u)
                                                         usr_print += u.name + "\n"
                                                     to_embed.add_field(
-                                                        name = f"Players [{str(len(game['users']))}/{str((gamesinfo[game['gameid']])['maxplayers'])}]",
+                                                        name = f"Players [{str(len(game['users']))}/{str((games_info[game['gameid']])['maxplayers'])}]",
                                                         value = usr_print,
                                                         inline = True
                                                     )
@@ -475,7 +475,7 @@ async def on_message(message):
                                                             u = await bot.get_user_info(u)
                                                             usr_print += u.name + "\n"
                                                         to_embed.add_field(
-                                                            name = f"Players [{str(len(game['users']))}/{str((gamesinfo[game['gameid']])['maxplayers'])}]",
+                                                            name = f"Players [{str(len(game['users']))}/{str((games_info[game['gameid']])['maxplayers'])}]",
                                                             value = usr_print,
                                                             inline = True
                                                         )
@@ -507,7 +507,7 @@ async def on_message(message):
                                                             u = await bot.get_user_info(u)
                                                             usr_print += u.name + "\n"
                                                         to_embed.add_field(
-                                                            name = f"Players [{str(len(game['users']))}/{str((gamesinfo[game['gameid']])['maxplayers'])}]",
+                                                            name = f"Players [{str(len(game['users']))}/{str((games_info[game['gameid']])['maxplayers'])}]",
                                                             value = usr_print,
                                                             inline = True
                                                         )
@@ -558,7 +558,7 @@ async def on_message(message):
                                                             u = await bot.get_user_info(u)
                                                             usr_print += u.name + "\n"
                                                         to_embed.add_field(
-                                                            name = f"Players [{str(len(game['users']))}/{str((gamesinfo[game['gameid']])['maxplayers'])}]",
+                                                            name = f"Players [{str(len(game['users']))}/{str((games_info[game['gameid']])['maxplayers'])}]",
                                                             value = usr_print,
                                                             inline = True
                                                         )
@@ -588,7 +588,7 @@ async def on_message(message):
                                                             u = await bot.get_user_info(u)
                                                             usr_print += u.name + "\n"
                                                         to_embed.add_field(
-                                                            name = f"Players [{str(len(game['users']))}/{str((gamesinfo[game['gameid']])['maxplayers'])}]",
+                                                            name = f"Players [{str(len(game['users']))}/{str((games_info[game['gameid']])['maxplayers'])}]",
                                                             value = usr_print,
                                                             inline = True
                                                         )
@@ -607,7 +607,7 @@ async def on_message(message):
                                                     game["currentplay"] += 1
                                         else:
                                             game = leave_game(game, (game["users"])[game["currentplay"]])
-                                            if len(game["users"]) < gamesinfo[game["gameid"]]["minplayers"]:
+                                            if len(game["users"]) < games_info[game["gameid"]]["minplayers"]:
                                                 match_made = False
                                                 for jjjj in game["users"]:
                                                     unlimit_user(jjjj)
@@ -632,11 +632,11 @@ async def on_message(message):
                                             if (game["users"]).index(u) == game["currentplay"]:
                                                 plr_name = uu.name
                                         to_embed.add_field(
-                                            name = f"Players [{str(len(game['users']))}/{str((gamesinfo[game['gameid']])['maxplayers'])}]",
+                                            name = f"Players [{str(len(game['users']))}/{str((games_info[game['gameid']])['maxplayers'])}]",
                                             value = usr_print,
                                             inline = True
                                         )
-                                        ctrl_msg = gamesinfo[game["gameid"]]["ctrlmsg"]
+                                        ctrl_msg = games_info[game["gameid"]]["ctrlmsg"]
                                         to_embed.add_field(
                                             name = "Game instructions:",
                                             value = ctrl_msg,
@@ -660,7 +660,7 @@ async def on_message(message):
                                         u = await bot.get_user_info(u)
                                         usr_print += u.name + "\n"
                                     to_embed.add_field(
-                                        name = f"Players [{str(len(game['users']))}/{str((gamesinfo[game['gameid']])['maxplayers'])}]",
+                                        name = f"Players [{str(len(game['users']))}/{str((games_info[game['gameid']])['maxplayers'])}]",
                                         value = usr_print,
                                         inline = True
                                     )
