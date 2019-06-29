@@ -18,13 +18,17 @@ import discord
 import ast
 import ox
 import cn4
+import requests
+import os
+import sys
+botauthorid = "249287049482338305" # <<<<<<<<<<<<<<<< IF YOU ARE MANUALLY HOSTING, REPLACE THIS STRING WITH YOUR OWN DISCORD ID OR YOU WILL NOT BE ABLE TO USE DEV COMMANDS!
 discordtoken = (open("token.cfg","r")).read()
 if discordtoken == "":
     discordtoken = input("No bot token detected, please set it now: ")
     (open("token.cfg","w")).write(discordtoken)
 bot = discord.Client()
-games = ["tictactoe","ox","mp","noughts&crosses","ox","mp","connect4","cn4","mp","fours","cn4","mp"]
-gamesinfo = {"ox":{"desc":"basic match three game","selfname":"ox","aliases":"tictactoe | noughts&crosses","creator":"Panley#3274","minplayers":2,"maxplayers":2,"ctrlmsg":"To control the game, reply with game commands. In this game, reposnd in the following fashion:\n`tl` `tm` `tr`\n`ml` `mm` `mr`\n`bl` `bm` `br`","cscheme":[0,0]},"cn4":{"desc":"basic 4 in a row drop game","selfname":"cn4","aliases":"connect4 | fours","creator":"Panley#3274","minplayers":2,"maxplayers":2,"ctrlmsg":"To control the game, reply with game commands. In this game, reposnd in the following fashion:\n`1` `2` `3` `4` `5` `6` `7`","cscheme":[0,0]}}
+games = list(ast.literal_eval((open("gameslist.cfg","r")).read()))
+gamesinfo = dict(ast.literal_eval((open("gamesdict.cfg","r")).read()))
 print("Flushing ratleimiter & matchmaking file...")
 (open("lookingusers","w")).write("")
 (open("activegames","w")).write("")
@@ -176,7 +180,7 @@ async def on_message(message):
                 if (params[0] == "help"):
                     toembed = discord.Embed(
                         title = "Juegos Commands",
-                        description = "format: `~command|alias <required argument> (optional argument)`\n`~help` - Shows this!\n`~newgame|ng <game name> (private)` - Create a new game for the given game name\n`~findgame|fg <game name>` - Finds a public match for the given game name\n`~joinid <match ID>` - Joins the user to a given match/private match\n`~games` - Lists all games present on the bot",
+                        description = "format: `~command|alias <required argument> (optional argument)`\n`~help` - Shows this!\n`~newgame|ng <game name> (private)` - Create a new game for the given game name\n`~findgame|fg <game name>` - Finds a public match for the given game name\n`~joinid <match ID>` - Joins the user to a given match/private match\n`~games` - Lists all games present on the bot\n`~addgamefile` - **Bot owner only!** lets the bot owner dynamically add a new game to the bot (Experimental)",
                         color = 7506394
                     )
                     toembed.add_field(
@@ -196,6 +200,41 @@ async def on_message(message):
                             value = ("Created by "+x["creator"]+"\n"+x["desc"]+"\nPlayers - Min: "+str(x["minplayers"])+" Max: "+str(x["maxplayers"]))
                         )
                     await bot.send_message(message.channel,embed = toembed)
+                elif (params[0] == "addgamefile") and (message.author.id == botauthorid):
+                    await bot.send_message(message.channel,"**THIS FEATURE IS EXPERIMENTAL AND MAY BREAK YOUR BOT INSTALL! PLEASE ENSURE THE BOT IS BACKED UP!**")
+                    await bot.send_message(message.channel,"Please send the game file you wish to add")
+                    filesend = await bot.wait_for_message(timeout = 60,author = message.author)
+                    if filesend != None:
+                        if len(filesend.attachments) == 1:
+                            for z in filesend.attachments:
+                                fileurl = z["url"]
+                                filename = fileurl.rsplit("/")
+                                filename = filename[len(filename)-1]
+                            r = requests.get(fileurl)
+                            (open(filename)).write(r.content)
+                            await bot.send_message(message.channel,"Please send the config file for the relevant game")
+                            filesend = await bot.wait_for_message(timeout = 60,author = message.author)
+                            if len(filesend.attachments) == 1:
+                                for z in filesend.attachments:
+                                    fileurl = z["url"]
+                                    r = requests.get(fileurl)
+                                newgameconf = r.content.rsplit("\n")
+                                gamelist = list(ast.literal_eval(newgameconf[0]))
+                                gamedict = dict(ast.literal_eval(newgameconf[1]))
+                                for ne in gamelist:
+                                    games.append(ne)
+                                (open("gameslist.cfg","w")).write(games)
+                                gamesinfo[gamedict["selfname"]] = gamedict
+                                (open("gamesdict.cfg","w")).write(gamesinfo)
+                                prescript = str((open("main.py","r")).read())
+                                prescript = prescript.replace("#initrenderhere",'elif game["gameid"] == "'+gamedict["selfname"]+'":\n                                        toprint = '+gamedict["selfname"]+'.firstrender()\n                                        #initrenderhere')
+                                if (gamedict["cscheme"])[1] == 0:
+                                    prescript = prescript.replace("#msgeventhere",'elif game["gameid"] == "'+gamedict["selfname"]+'":\n                                                r1 = '+gamedict["selfname"]+'.makeplay(((game["usrstatuses"])[game["currentplay"]]),resp.content)\n                                            #msgeventhere')
+                                elif (gamedict["cscheme"])[1] == 1:
+                                    prescript = prescript.replace("#reacteventhere",'elif game["gameid"] == "'+gamedict["selfname"]+'":\n                                                r1 = '+gamedict["selfname"]+'.makeplay(((game["usrstatuses"])[game["currentplay"]]),resp.content)\n                                            #reacteventhere')
+                                await bot.send_message(message.channel,"All files updated, the bot will now restart.")
+                                (open("main.py","w")).write(prescript)
+                                os.execl(sys.executable, sys.executable, * sys.argv)
                 elif (params[0] == "newgame") or (params[0] == "ng"):
                     print("   command ID: Newgame")
                     if len(params) > 1:
@@ -315,30 +354,282 @@ async def on_message(message):
                                     await bot.edit_message(zz,embed = toembed)
                                 userstatuses = []
                                 #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Initial board rendering is declared here
-                                if game["gameid"] == "ox":
-                                    toprint = ox.firstrender()
-                                elif game["gameid"] == "cn4":
-                                    toprint = cn4.firstrender()
-                                for plr in game["users"]:
-                                    chnl = await bot.get_user_info(plr)
-                                    msgs = []
-                                    for rdr in toprint:
-                                        concat = ""
-                                        for rdr1 in rdr:
-                                            concat += rdr1
-                                        msgr = await bot.send_message(chnl,concat)
-                                        msgs.append(msgr.id)
-                                        dmchl = msgr.channel.id
-                                    if (game["ctrls"])[0] == 1:
-                                        for emji in game["reactions"]:
-                                            await bot.add_reaction(msgr,emji)
-                                    userinf = {"id":plr,"board":toprint,"messages":msgs,"dmchannel":dmchl,"team":(game["users"]).index(plr)}
-                                    userstatuses.append(userinf)
-                                    game["usrstatuses"] = userstatuses
-                                    game["currentplay"] = 0
-                                print("Game started with ID: "+str(game["match_id"]))
-                                while matchmade == True:
-                                    for zz in messages:
+                                gamesafe = game
+                                messagessafe = messages
+                                try:
+                                    if game["gameid"] == "ox":
+                                        toprint = ox.firstrender()
+                                    elif game["gameid"] == "cn4":
+                                        toprint = cn4.firstrender()
+                                    #DO NOT EDIT THIS COMMENT! THIS LINE IS REFERENCED FOR DYNAMIC FILE UPDATING!
+                                    #initrenderhere
+                                    for plr in game["users"]:
+                                        chnl = await bot.get_user_info(plr)
+                                        msgs = []
+                                        for rdr in toprint:
+                                            concat = ""
+                                            for rdr1 in rdr:
+                                                concat += rdr1
+                                            msgr = await bot.send_message(chnl,concat)
+                                            msgs.append(msgr.id)
+                                            dmchl = msgr.channel.id
+                                        if (game["ctrls"])[0] == 1:
+                                            for emji in game["reactions"]:
+                                                await bot.add_reaction(msgr,emji)
+                                        userinf = {"id":plr,"board":toprint,"messages":msgs,"dmchannel":dmchl,"team":(game["users"]).index(plr)}
+                                        userstatuses.append(userinf)
+                                        game["usrstatuses"] = userstatuses
+                                        game["currentplay"] = 0
+                                    print("Game started with ID: "+str(game["match_id"]))
+                                    while matchmade == True:
+                                        for zz in messages:
+                                            toembed = discord.Embed(
+                                                title = gamenameconst+" game created",
+                                                description = "Match ID: "+game["match_id"],
+                                                color = 10070709
+                                            )
+                                            usrprint = ""
+                                            for u in game["users"]:
+                                                uu = await bot.get_user_info(u)
+                                                usrprint += uu.name + "\n"
+                                                if (game["users"]).index(u) == game["currentplay"]:
+                                                    plrname = uu.name
+                                            toembed.add_field(
+                                                name = "Players ["+str(len(game["users"]))+"/"+str((gamesinfo[game["gameid"]])["maxplayers"])+"]",
+                                                value = usrprint,
+                                                inline = True
+                                            )
+                                            ctrlmsg = (gamesinfo[game["gameid"]])["ctrlmsg"]
+                                            toembed.add_field(
+                                                name = "Game instructions:",
+                                                value = ctrlmsg,
+                                                inline = True
+                                            )
+                                            toembed.add_field(
+                                                name = "Game active",
+                                                value = plrname+"'s turn",
+                                                inline = True
+                                            )
+                                            await bot.edit_message(zz,embed = toembed)
+                                        userwaitfor = await bot.get_user_info((game["users"])[game["currentplay"]])
+                                        if (game["ctrls"])[0] == 0:
+                                            if (game["ctrls"])[1] == 0:
+                                                resp = await bot.wait_for_message(author = userwaitfor,timeout = game["timeout"])
+                                            else:
+                                                resp = await bot.wait_for_message(author = userwaitfor,timeout = 1)
+                                        elif (game["ctrls"])[0] == 1:
+                                            if (game["ctrls"])[1] == 0:
+                                                resp = await bot.wait_for_reaction(user = userwaitfor,timeout = game["timeout"])
+                                            else:
+                                                resp = await bot.wait_for_reaction(user = userwaitfor,timeout = 1)
+                                        if str(resp) == "exit":
+                                            #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Handling for a user leaving the game by choice
+                                            game = leavegame(game,(game["users"])[game["currentplay"]])
+                                            if len(game["users"]< (gamesinfo[game["gameid"]])["minplayers"]):
+                                                matchmade = False
+                                                for jjjj in game["users"]:
+                                                    unlimituser(jjjj)
+                                                for jjj in messages:
+                                                    toembed = discord.Embed(
+                                                        title = gamenameconst+" game created",
+                                                        description = "Match ID: "+game["match_id"],
+                                                        color = 10070709
+                                                    )
+                                                    usrprint = ""
+                                                    for u in game["users"]:
+                                                        u = await bot.get_user_info(u)
+                                                        usrprint += u.name + "\n"
+                                                    toembed.add_field(
+                                                        name = "Players ["+str(len(game["users"]))+"/"+str((gamesinfo[game["gameid"]])["maxplayers"])+"]",
+                                                        value = usrprint,
+                                                        inline = True
+                                                    )
+                                                    toembed.add_field(
+                                                        name = "GAME OVER",
+                                                        value = "Too many users disconnected.",
+                                                        inline = True
+                                                    )
+                                                    await bot.edit_message(jjj,embed = toembed)
+                                            else:
+                                                if game["currentplay"] == len(game["users"])-1:
+                                                    game["currentplay"] = 0
+                                                else:
+                                                    game["currentplay"] += 1
+                                        elif (resp != None) and ((game["ctrls"])[1] == 0):
+                                            #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< On message events here
+                                            if game["gameid"] == "ox":
+                                                r1 = ox.makeplay(((game["usrstatuses"])[game["currentplay"]]),resp.content)
+                                            elif game["gameid"] == "cn4":
+                                                r1 = cn4.makeplay(((game["usrstatuses"])[game["currentplay"]]),resp.content)
+                                            #DO NOT EDIT THIS COMMENT! THIS LINE IS REFERENCED FOR DYNAMIC FILE UPDATING!
+                                            #msgeventhere
+                                            if r1 != False:
+                                                ((game["usrstatuses"])[game["currentplay"]]) = r1
+                                                for usrs in game["usrstatuses"]:
+                                                    for clmn in (usrs)["board"]:
+                                                        concat = ""
+                                                        for xzzx in clmn:
+                                                            concat += xzzx
+                                                        chnl = bot.get_channel(usrs["dmchannel"])
+                                                        msgs = (usrs["messages"])[(usrs["board"]).index(clmn)]
+                                                        msgobj = await bot.get_message(chnl,msgs)
+                                                        if msgobj.content != concat:
+                                                            await bot.edit_message(msgobj,concat)
+                                                if game["gameid"] == "ox":
+                                                    winchk = ox.wincond(((game["usrstatuses"])[game["currentplay"]]))
+                                                elif game["gameid"] == "cn4":
+                                                    winchk = cn4.wincond(((game["usrstatuses"])[game["currentplay"]]))
+                                                if winchk == True:
+                                                    for jjj in messages:
+                                                        toembed = discord.Embed(
+                                                            title = gamenameconst+" game created",
+                                                            description = "Match ID: "+game["match_id"],
+                                                            color = 10070709
+                                                        )
+                                                        usrprint = ""
+                                                        for u in game["users"]:
+                                                            u = await bot.get_user_info(u)
+                                                            usrprint += u.name + "\n"
+                                                        toembed.add_field(
+                                                            name = "Players ["+str(len(game["users"]))+"/"+str((gamesinfo[game["gameid"]])["maxplayers"])+"]",
+                                                            value = usrprint,
+                                                            inline = True
+                                                        )
+                                                        usrget = await bot.get_user_info((game["users"])[game["currentplay"]])
+                                                        toembed.add_field(
+                                                            name = "GAME OVER",
+                                                            value = usrget.name+" has won!",
+                                                            inline = True
+                                                        )
+                                                        await bot.edit_message(jjj,embed = toembed)
+                                                    for jjjj in game["users"]:
+                                                        unlimituser(jjjj)
+                                                    matchmade = False
+                                                if game["gameid"] == "ox":
+                                                    losschk = ox.losscond(((game["usrstatuses"])[game["currentplay"]]))
+                                                elif game["gameid"] == "cn4":
+                                                    losschk = cn4.losscond(((game["usrstatuses"])[game["currentplay"]]))
+                                                if losschk == True:
+                                                    for jjj in messages:
+                                                        toembed = discord.Embed(
+                                                            title = gamenameconst+" game created",
+                                                            description = "Match ID: "+game["match_id"],
+                                                            color = 10070709
+                                                        )
+                                                        usrprint = ""
+                                                        for u in game["users"]:
+                                                            u = await bot.get_user_info(u)
+                                                            usrprint += u.name + "\n"
+                                                        toembed.add_field(
+                                                            name = "Players ["+str(len(game["users"]))+"/"+str((gamesinfo[game["gameid"]])["maxplayers"])+"]",
+                                                            value = usrprint,
+                                                            inline = True
+                                                        )
+                                                        toembed.add_field(
+                                                            name = "GAME OVER",
+                                                            value = "No-one won!",
+                                                            inline = True
+                                                        )
+                                                        await bot.edit_message(jjj,embed = toembed)
+                                                    for jjjj in game["users"]:
+                                                        unlimituser(jjjj)
+                                                    matchmade = False
+                                                if game["currentplay"] == len(game["users"])-1:
+                                                    game["currentplay"] = 0
+                                                else:
+                                                    game["currentplay"] += 1
+                                        elif (resp != None) and ((game["ctrls"])[1] == 1):
+                                            #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< On reaction events here
+                                            if game["gameid"] == "some emoji controlled game":
+                                                r1 = ox.makeplay(((game["usrstatuses"])[game["currentplay"]]),resp.content)
+                                            #DO NOT EDIT THIS COMMENT! THIS LINE IS REFERENCED FOR DYNAMIC FILE UPDATING!
+                                            #reacteventhere
+                                            if r1 != False:
+                                                ((game["usrstatuses"])[game["currentplay"]]) = r1
+                                                for usrs in game["usrstatuses"]:
+                                                    for clmn in (usrs)["board"]:
+                                                        concat = ""
+                                                        for xzzx in clmn:
+                                                            concat += xzzx
+                                                        chnl = bot.get_channel(usrs["dmchannel"])
+                                                        msgs = (usrs["messages"])[(usrs["board"]).index(clmn)]
+                                                        msgobj = await bot.get_message(chnl,msgs)
+                                                        if msgobj.content != concat:
+                                                            await bot.edit_message(msgobj,concat)
+                                                if game["gameid"] == "some emoji controlled game":
+                                                    winchk = ox.wincond(((game["usrstatuses"])[game["currentplay"]]))
+                                                if winchk == True:
+                                                    for jjj in messages:
+                                                        toembed = discord.Embed(
+                                                            title = gamenameconst+" game created",
+                                                            description = "Match ID: "+game["match_id"],
+                                                            color = 10070709
+                                                        )
+                                                        usrprint = ""
+                                                        for u in game["users"]:
+                                                            u = await bot.get_user_info(u)
+                                                            usrprint += u.name + "\n"
+                                                        toembed.add_field(
+                                                            name = "Players ["+str(len(game["users"]))+"/"+str((gamesinfo[game["gameid"]])["maxplayers"])+"]",
+                                                            value = usrprint,
+                                                            inline = True
+                                                        )
+                                                        usrget = await bot.get_user_info((game["users"])[game["currentplay"]])
+                                                        toembed.add_field(
+                                                            name = "GAME OVER",
+                                                            value = usrget.name+" has won!",
+                                                            inline = True
+                                                        )
+                                                        await bot.edit_message(jjj,embed = toembed)
+                                                    for jjjj in game["users"]:
+                                                        unlimituser(jjjj)
+                                                    matchmade = False
+                                                if game["gameid"] == "some emoji controlled game":
+                                                    losschk = ox.losscond(((game["usrstatuses"])[game["currentplay"]]))
+                                                if losschk == True:
+                                                    for jjj in messages:
+                                                        toembed = discord.Embed(
+                                                            title = gamenameconst+" game created",
+                                                            description = "Match ID: "+game["match_id"],
+                                                            color = 10070709
+                                                        )
+                                                        usrprint = ""
+                                                        for u in game["users"]:
+                                                            u = await bot.get_user_info(u)
+                                                            usrprint += u.name + "\n"
+                                                        toembed.add_field(
+                                                            name = "Players ["+str(len(game["users"]))+"/"+str((gamesinfo[game["gameid"]])["maxplayers"])+"]",
+                                                            value = usrprint,
+                                                            inline = True
+                                                        )
+                                                        toembed.add_field(
+                                                            name = "GAME OVER",
+                                                            value = "No-one won!",
+                                                            inline = True
+                                                        )
+                                                        await bot.edit_message(jjj,embed = toembed)
+                                                    for jjjj in game["users"]:
+                                                        unlimituser(jjjj)
+                                                    matchmade = False
+                                                if game["currentplay"] == len(game["users"])-1:
+                                                    game["currentplay"] = 0
+                                                else:
+                                                    game["currentplay"] += 1
+                                        else:
+                                            game = leavegame(game,(game["users"])[game["currentplay"]])
+                                            if len(game["users"]< (gamesinfo[game["gameid"]])["minplayers"]):
+                                                matchmade = False
+                                                for jjjj in game["users"]:
+                                                    unlimituser(jjjj)
+                                            else:
+                                                if game["currentplay"] == len(game["users"])-1:
+                                                    game["currentplay"] = 0
+                                                else:
+                                                    game["currentplay"] += 1
+                                except Exception as e:
+                                    for jjjj in game["users"]:
+                                        unlimituser(jjjj)
+                                    for zz in messagessafe:
                                         toembed = discord.Embed(
                                             title = gamenameconst+" game created",
                                             description = "Match ID: "+game["match_id"],
@@ -362,222 +653,11 @@ async def on_message(message):
                                             inline = True
                                         )
                                         toembed.add_field(
-                                            name = "Game active",
-                                            value = plrname+"'s turn",
+                                            name = "GAME CRASHED",
+                                            value = "The game encountered an internal script error and was forced to close. Please send the author this error message:\n`"+str(e)+"`",
                                             inline = True
                                         )
                                         await bot.edit_message(zz,embed = toembed)
-                                    userwaitfor = await bot.get_user_info((game["users"])[game["currentplay"]])
-                                    if (game["ctrls"])[0] == 0:
-                                        if (game["ctrls"])[1] == 0:
-                                            resp = await bot.wait_for_message(author = userwaitfor,timeout = game["timeout"])
-                                        else:
-                                            resp = await bot.wait_for_message(author = userwaitfor,timeout = 1)
-                                    elif (game["ctrls"])[0] == 1:
-                                        if (game["ctrls"])[1] == 0:
-                                            resp = await bot.wait_for_reaction(user = userwaitfor,timeout = game["timeout"])
-                                        else:
-                                            resp = await bot.wait_for_reaction(user = userwaitfor,timeout = 1)
-                                    if str(resp) == "exit":
-                                        #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< Handling for a user leaving the game by choice
-                                        game = leavegame(game,(game["users"])[game["currentplay"]])
-                                        if len(game["users"]< (gamesinfo[game["gameid"]])["minplayers"]):
-                                            matchmade = False
-                                            for jjjj in game["users"]:
-                                                unlimituser(jjjj)
-                                            for jjj in messages:
-                                                toembed = discord.Embed(
-                                                    title = gamenameconst+" game created",
-                                                    description = "Match ID: "+game["match_id"],
-                                                    color = 10070709
-                                                )
-                                                usrprint = ""
-                                                for u in game["users"]:
-                                                    u = await bot.get_user_info(u)
-                                                    usrprint += u.name + "\n"
-                                                toembed.add_field(
-                                                    name = "Players ["+str(len(game["users"]))+"/"+str((gamesinfo[game["gameid"]])["maxplayers"])+"]",
-                                                    value = usrprint,
-                                                    inline = True
-                                                )
-                                                toembed.add_field(
-                                                    name = "GAME OVER",
-                                                    value = "Too many users disconnected.",
-                                                    inline = True
-                                                )
-                                                await bot.edit_message(jjj,embed = toembed)
-                                        else:
-                                            if game["currentplay"] == len(game["users"])-1:
-                                                game["currentplay"] = 0
-                                            else:
-                                                game["currentplay"] += 1
-                                    elif (resp != None) and ((game["ctrls"])[1] == 0):
-                                        #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< On message events here
-                                        if game["gameid"] == "ox":
-                                            r1 = ox.makeplay(((game["usrstatuses"])[game["currentplay"]]),resp.content)
-                                        elif game["gameid"] == "cn4":
-                                            r1 = cn4.makeplay(((game["usrstatuses"])[game["currentplay"]]),resp.content)
-                                        if r1 != False:
-                                            ((game["usrstatuses"])[game["currentplay"]]) = r1
-                                            for usrs in game["usrstatuses"]:
-                                                for clmn in (usrs)["board"]:
-                                                    concat = ""
-                                                    for xzzx in clmn:
-                                                        concat += xzzx
-                                                    chnl = bot.get_channel(usrs["dmchannel"])
-                                                    msgs = (usrs["messages"])[(usrs["board"]).index(clmn)]
-                                                    msgobj = await bot.get_message(chnl,msgs)
-                                                    if msgobj.content != concat:
-                                                        await bot.edit_message(msgobj,concat)
-                                            if game["gameid"] == "ox":
-                                                winchk = ox.wincond(((game["usrstatuses"])[game["currentplay"]]))
-                                            elif game["gameid"] == "cn4":
-                                                winchk = cn4.wincond(((game["usrstatuses"])[game["currentplay"]]))
-                                            if winchk == True:
-                                                for jjj in messages:
-                                                    toembed = discord.Embed(
-                                                        title = gamenameconst+" game created",
-                                                        description = "Match ID: "+game["match_id"],
-                                                        color = 10070709
-                                                    )
-                                                    usrprint = ""
-                                                    for u in game["users"]:
-                                                        u = await bot.get_user_info(u)
-                                                        usrprint += u.name + "\n"
-                                                    toembed.add_field(
-                                                        name = "Players ["+str(len(game["users"]))+"/"+str((gamesinfo[game["gameid"]])["maxplayers"])+"]",
-                                                        value = usrprint,
-                                                        inline = True
-                                                    )
-                                                    usrget = await bot.get_user_info((game["users"])[game["currentplay"]])
-                                                    toembed.add_field(
-                                                        name = "GAME OVER",
-                                                        value = usrget.name+" has won!",
-                                                        inline = True
-                                                    )
-                                                    await bot.edit_message(jjj,embed = toembed)
-                                                for jjjj in game["users"]:
-                                                    unlimituser(jjjj)
-                                                matchmade = False
-                                            if game["gameid"] == "ox":
-                                                losschk = ox.losscond(((game["usrstatuses"])[game["currentplay"]]))
-                                            elif game["gameid"] == "cn4":
-                                                losschk = cn4.losscond(((game["usrstatuses"])[game["currentplay"]]))
-                                            if losschk == True:
-                                                for jjj in messages:
-                                                    toembed = discord.Embed(
-                                                        title = gamenameconst+" game created",
-                                                        description = "Match ID: "+game["match_id"],
-                                                        color = 10070709
-                                                    )
-                                                    usrprint = ""
-                                                    for u in game["users"]:
-                                                        u = await bot.get_user_info(u)
-                                                        usrprint += u.name + "\n"
-                                                    toembed.add_field(
-                                                        name = "Players ["+str(len(game["users"]))+"/"+str((gamesinfo[game["gameid"]])["maxplayers"])+"]",
-                                                        value = usrprint,
-                                                        inline = True
-                                                    )
-                                                    toembed.add_field(
-                                                        name = "GAME OVER",
-                                                        value = "No-one won!",
-                                                        inline = True
-                                                    )
-                                                    await bot.edit_message(jjj,embed = toembed)
-                                                for jjjj in game["users"]:
-                                                    unlimituser(jjjj)
-                                                matchmade = False
-                                            if game["currentplay"] == len(game["users"])-1:
-                                                game["currentplay"] = 0
-                                            else:
-                                                game["currentplay"] += 1
-                                    elif (resp != None) and ((game["ctrls"])[1] == 1):
-                                        #<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< On reaction events here
-                                        if game["gameid"] == "some emoji controlled game":
-                                            r1 = ox.makeplay(((game["usrstatuses"])[game["currentplay"]]),resp.content)
-                                        if r1 != False:
-                                            ((game["usrstatuses"])[game["currentplay"]]) = r1
-                                            for usrs in game["usrstatuses"]:
-                                                for clmn in (usrs)["board"]:
-                                                    concat = ""
-                                                    for xzzx in clmn:
-                                                        concat += xzzx
-                                                    chnl = bot.get_channel(usrs["dmchannel"])
-                                                    msgs = (usrs["messages"])[(usrs["board"]).index(clmn)]
-                                                    msgobj = await bot.get_message(chnl,msgs)
-                                                    if msgobj.content != concat:
-                                                        await bot.edit_message(msgobj,concat)
-                                            if game["gameid"] == "some emoji controlled game":
-                                                winchk = ox.wincond(((game["usrstatuses"])[game["currentplay"]]))
-                                            if winchk == True:
-                                                for jjj in messages:
-                                                    toembed = discord.Embed(
-                                                        title = gamenameconst+" game created",
-                                                        description = "Match ID: "+game["match_id"],
-                                                        color = 10070709
-                                                    )
-                                                    usrprint = ""
-                                                    for u in game["users"]:
-                                                        u = await bot.get_user_info(u)
-                                                        usrprint += u.name + "\n"
-                                                    toembed.add_field(
-                                                        name = "Players ["+str(len(game["users"]))+"/"+str((gamesinfo[game["gameid"]])["maxplayers"])+"]",
-                                                        value = usrprint,
-                                                        inline = True
-                                                    )
-                                                    usrget = await bot.get_user_info((game["users"])[game["currentplay"]])
-                                                    toembed.add_field(
-                                                        name = "GAME OVER",
-                                                        value = usrget.name+" has won!",
-                                                        inline = True
-                                                    )
-                                                    await bot.edit_message(jjj,embed = toembed)
-                                                for jjjj in game["users"]:
-                                                    unlimituser(jjjj)
-                                                matchmade = False
-                                            if game["gameid"] == "some emoji controlled game":
-                                                losschk = ox.losscond(((game["usrstatuses"])[game["currentplay"]]))
-                                            if losschk == True:
-                                                for jjj in messages:
-                                                    toembed = discord.Embed(
-                                                        title = gamenameconst+" game created",
-                                                        description = "Match ID: "+game["match_id"],
-                                                        color = 10070709
-                                                    )
-                                                    usrprint = ""
-                                                    for u in game["users"]:
-                                                        u = await bot.get_user_info(u)
-                                                        usrprint += u.name + "\n"
-                                                    toembed.add_field(
-                                                        name = "Players ["+str(len(game["users"]))+"/"+str((gamesinfo[game["gameid"]])["maxplayers"])+"]",
-                                                        value = usrprint,
-                                                        inline = True
-                                                    )
-                                                    toembed.add_field(
-                                                        name = "GAME OVER",
-                                                        value = "No-one won!",
-                                                        inline = True
-                                                    )
-                                                    await bot.edit_message(jjj,embed = toembed)
-                                                for jjjj in game["users"]:
-                                                    unlimituser(jjjj)
-                                                matchmade = False
-                                            if game["currentplay"] == len(game["users"])-1:
-                                                game["currentplay"] = 0
-                                            else:
-                                                game["currentplay"] += 1
-                                    else:
-                                        game = leavegame(game,(game["users"])[game["currentplay"]])
-                                        if len(game["users"]< (gamesinfo[game["gameid"]])["minplayers"]):
-                                            matchmade = False
-                                            for jjjj in game["users"]:
-                                                unlimituser(jjjj)
-                                        else:
-                                            if game["currentplay"] == len(game["users"])-1:
-                                                game["currentplay"] = 0
-                                            else:
-                                                game["currentplay"] += 1
                             else:
                                 for jjj in messages:
                                     toembed = discord.Embed(
@@ -600,7 +680,7 @@ async def on_message(message):
                                         inline = True
                                     )
                                     await bot.edit_message(jjj,embed = toembed)
-                                for usrs in game["users"]:
+                                for usrs in gamesafe["users"]:
                                     unlimituser(usrs)
                         else:
                             pass
