@@ -230,8 +230,12 @@ async def on_message(message):
                                 prescript = prescript.replace("#initrenderhere",'elif game["gameid"] == "'+gamedict["selfname"]+'":\n                                        toprint = '+gamedict["selfname"]+'.firstrender()\n                                        #initrenderhere')
                                 if (gamedict["cscheme"])[1] == 0:
                                     prescript = prescript.replace("#msgeventhere",'elif game["gameid"] == "'+gamedict["selfname"]+'":\n                                                r1 = '+gamedict["selfname"]+'.makeplay(((game["usrstatuses"])[game["currentplay"]]),resp.content)\n                                            #msgeventhere')
+                                    prescript = prescript.replace("#msgwincondhere",'elif game["gameid"] == "'+gamedict["selfname"]+'":\n                                                    winchk = '+gamedict["selfname"]+'.wincond(((game["usrstatuses"])[game["currentplay"]]))\n                                                #msgwincondhere')
+                                    prescript = prescript.replace("#msglosscondhere",'elif game["gameid"] == "'+gamedict["selfname"]+'":\n                                                    winchk = '+gamedict["selfname"]+'.losscond(((game["usrstatuses"])[game["currentplay"]]))\n                                                #msglosscondhere')
                                 elif (gamedict["cscheme"])[1] == 1:
                                     prescript = prescript.replace("#reacteventhere",'elif game["gameid"] == "'+gamedict["selfname"]+'":\n                                                r1 = '+gamedict["selfname"]+'.makeplay(((game["usrstatuses"])[game["currentplay"]]),resp.content)\n                                            #reacteventhere')
+                                    prescript = prescript.replace("#reactwincondhere",'elif game["gameid"] == "'+gamedict["selfname"]+'":\n                                                    winchk = '+gamedict["selfname"]+'.wincond(((game["usrstatuses"])[game["currentplay"]]))\n                                                #reactwincondhere')
+                                    prescript = prescript.replace("#reactlosscondhere",'elif game["gameid"] == "'+gamedict["selfname"]+'":\n                                                    winchk = '+gamedict["selfname"]+'.losscond(((game["usrstatuses"])[game["currentplay"]]))\n                                                #reactlosscondhere')
                                 await bot.send_message(message.channel,"All files updated, the bot will now restart.")
                                 (open("main.py","w")).write(prescript)
                                 os.execl(sys.executable, sys.executable, * sys.argv)
@@ -479,6 +483,8 @@ async def on_message(message):
                                                     winchk = ox.wincond(((game["usrstatuses"])[game["currentplay"]]))
                                                 elif game["gameid"] == "cn4":
                                                     winchk = cn4.wincond(((game["usrstatuses"])[game["currentplay"]]))
+                                                #DO NOT EDIT THIS COMMENT! THIS LINE IS REFERENCED FOR DYNAMIC FILE UPDATING!
+                                                #msgwincondhere
                                                 if winchk == True:
                                                     for jjj in messages:
                                                         toembed = discord.Embed(
@@ -509,6 +515,8 @@ async def on_message(message):
                                                     losschk = ox.losscond(((game["usrstatuses"])[game["currentplay"]]))
                                                 elif game["gameid"] == "cn4":
                                                     losschk = cn4.losscond(((game["usrstatuses"])[game["currentplay"]]))
+                                                #DO NOT EDIT THIS COMMENT! THIS LINE IS REFERENCED FOR DYNAMIC FILE UPDATING!
+                                                #msglosscondhere
                                                 if losschk == True:
                                                     for jjj in messages:
                                                         toembed = discord.Embed(
@@ -558,6 +566,8 @@ async def on_message(message):
                                                             await bot.edit_message(msgobj,concat)
                                                 if game["gameid"] == "some emoji controlled game":
                                                     winchk = ox.wincond(((game["usrstatuses"])[game["currentplay"]]))
+                                                #DO NOT EDIT THIS COMMENT! THIS LINE IS REFERENCED FOR DYNAMIC FILE UPDATING!
+                                                #reactwincondhere
                                                 if winchk == True:
                                                     for jjj in messages:
                                                         toembed = discord.Embed(
@@ -586,6 +596,8 @@ async def on_message(message):
                                                     matchmade = False
                                                 if game["gameid"] == "some emoji controlled game":
                                                     losschk = ox.losscond(((game["usrstatuses"])[game["currentplay"]]))
+                                                #DO NOT EDIT THIS COMMENT! THIS LINE IS REFERENCED FOR DYNAMIC FILE UPDATING!
+                                                #reactlosscondhere
                                                 if losschk == True:
                                                     for jjj in messages:
                                                         toembed = discord.Embed(
